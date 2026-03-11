@@ -23,3 +23,7 @@ log_level = "info"
 income_drop_threshold = 0.5
 # Send notification when device recovers from offline
 notify_on_recovery = true
+# Packet loss threshold to flag a line as problematic
+line_loss_threshold = 0.2
+# RTT threshold (ms) to flag a line as problematic
+line_rtt_threshold = 100.0

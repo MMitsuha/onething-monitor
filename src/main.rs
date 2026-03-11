@@ -196,6 +196,8 @@ async fn main() -> Result<()> {
                         &line_data_map,
                         &s,
                         slow_config.alert.notify_on_recovery,
+                        slow_config.alert.line_loss_threshold,
+                        slow_config.alert.line_rtt_threshold,
                     );
 
                     if !line_events.is_empty() {

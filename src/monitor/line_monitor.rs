@@ -46,6 +46,8 @@ pub fn check_line_changes(
     line_data_map: &HashMap<String, (String, NetLineDataResponse)>,
     state: &MonitorState,
     notify_on_recovery: bool,
+    loss_threshold: f64,
+    rtt_threshold: f64,
 ) -> Vec<LineEvent> {
     let mut events = Vec::new();
 
@@ -92,7 +94,7 @@ pub fn check_line_changes(
             let problem_lines: Vec<ProblemLine> = data
                 .line_data_list
                 .iter()
-                .filter(|l| l.lost > 0.0)
+                .filter(|l| l.lost >= loss_threshold * 100.0)
                 .map(|l| ProblemLine::from_line_info(l))
                 .collect();
             events.push(LineEvent {
@@ -121,7 +123,7 @@ pub fn check_line_changes(
             let problem_lines: Vec<ProblemLine> = data
                 .line_data_list
                 .iter()
-                .filter(|l| l.rtt > 0.0)
+                .filter(|l| l.rtt >= rtt_threshold)
                 .map(|l| ProblemLine::from_line_info(l))
                 .collect();
             events.push(LineEvent {

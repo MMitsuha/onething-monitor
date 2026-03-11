@@ -42,6 +42,12 @@ pub struct AlertConfig {
     pub income_drop_threshold: f64,
     #[serde(default = "default_true")]
     pub notify_on_recovery: bool,
+    /// Packet loss threshold to flag a line as problematic
+    #[serde(default = "default_line_loss_threshold")]
+    pub line_loss_threshold: f64,
+    /// RTT threshold (ms) to flag a line as problematic
+    #[serde(default = "default_line_rtt_threshold")]
+    pub line_rtt_threshold: f64,
 }
 
 fn default_device_interval() -> u64 {
@@ -62,6 +68,12 @@ fn default_income_threshold() -> f64 {
 fn default_true() -> bool {
     true
 }
+fn default_line_loss_threshold() -> f64 {
+    0.2
+}
+fn default_line_rtt_threshold() -> f64 {
+    100.0
+}
 
 impl Default for MonitorConfig {
     fn default() -> Self {
@@ -79,6 +91,8 @@ impl Default for AlertConfig {
         Self {
             income_drop_threshold: default_income_threshold(),
             notify_on_recovery: default_true(),
+            line_loss_threshold: default_line_loss_threshold(),
+            line_rtt_threshold: default_line_rtt_threshold(),
         }
     }
 }
