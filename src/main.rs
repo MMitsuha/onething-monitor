@@ -44,8 +44,10 @@ async fn main() -> Result<()> {
     let state_path = MonitorState::state_path();
     let state = Arc::new(Mutex::new(MonitorState::load(&state_path)));
 
-    // Chart data store
-    let chart_store = Arc::new(Mutex::new(ChartDataStore::new(
+    // Chart data store (load from disk if available)
+    let chart_data_path = ChartDataStore::chart_data_path();
+    let chart_store = Arc::new(Mutex::new(ChartDataStore::load(
+        &chart_data_path,
         config.monitor.chart_history_hours,
         config.monitor.income_check_interval_secs,
     )));
@@ -160,6 +162,7 @@ async fn main() -> Result<()> {
     let slow_config = config.clone();
     let slow_state_path = state_path.clone();
     let slow_chart_store = chart_store.clone();
+    let slow_chart_data_path = chart_data_path.clone();
 
     let slow_handle = tokio::spawn(async move {
         let interval =
@@ -240,6 +243,12 @@ async fn main() -> Result<()> {
                             &slow_chart_store,
                         )
                         .await;
+
+                        // Persist chart data to disk
+                        let store = slow_chart_store.lock().await;
+                        if let Err(e) = store.save(&slow_chart_data_path) {
+                            error!("Failed to save chart data: {}", e);
+                        }
                     }
 
                     // ── Send charts on interval ──
@@ -302,6 +311,16 @@ async fn main() -> Result<()> {
         }
     });
 
+    // Spawn bot command listener
+    let bot_client = client.clone();
+    let bot_notifier = notifier.clone();
+    let bot_config = config.clone();
+    let bot_chart_store = chart_store.clone();
+
+    let bot_handle = tokio::spawn(async move {
+        notify::bot::run_bot_polling(bot_client, bot_notifier, bot_config, bot_chart_store).await;
+    });
+
     info!("Monitor running. Press Ctrl+C to stop.");
 
     tokio::select! {
@@ -314,11 +333,16 @@ async fn main() -> Result<()> {
         r = slow_handle => {
             error!("Slow loop exited: {:?}", r);
         }
+        r = bot_handle => {
+            error!("Bot loop exited: {:?}", r);
+        }
     }
 
     // Save final state
     let s = state.lock().await;
     let _ = s.save(&state_path);
+    let cs = chart_store.lock().await;
+    let _ = cs.save(&chart_data_path);
     info!("State saved. Goodbye!");
 
     Ok(())
@@ -380,18 +404,15 @@ async fn collect_chart_data(
         // Build a combined view: match lines by NIC name or line number
         if let Some((_remark, cloud_data)) = cloud_lines {
             for cloud_line in &cloud_data.line_data_list {
-                let line_key = if !cloud_line.nic.is_empty() {
-                    cloud_line.nic.clone()
-                } else {
-                    format!("line{}", cloud_line.line_no)
-                };
+                let line_key = format!("line{}", cloud_line.line_no);
 
-                // Try to find matching local line data by NIC or tag
+                // Try to find matching local line data by tag (line_no), then NIC
+                let tag = format!("line{}", cloud_line.line_no);
                 let local_line = local_status.as_ref().and_then(|ls| {
-                    ls.multidial.iter().find(|ll| {
-                        ll.nic == cloud_line.nic
-                            || ll.tag == format!("line{}", cloud_line.line_no)
-                    })
+                    ls.multidial
+                        .iter()
+                        .find(|ll| ll.tag == tag)
+                        .or_else(|| ls.multidial.iter().find(|ll| ll.nic == cloud_line.nic))
                 });
 
                 let sample = LineSample {
@@ -407,11 +428,7 @@ async fn collect_chart_data(
         } else if let Some(local_data) = &local_status {
             // No cloud data, but have local data
             for ll in &local_data.multidial {
-                let line_key = if !ll.nic.is_empty() {
-                    ll.nic.clone()
-                } else {
-                    ll.tag.clone()
-                };
+                let line_key = ll.tag.clone();
 
                 let sample = LineSample {
                     timestamp: now,

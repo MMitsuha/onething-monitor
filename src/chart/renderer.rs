@@ -2,9 +2,41 @@ use super::history::DeviceHistory;
 use chrono::{DateTime, Local};
 use plotters::prelude::*;
 use std::io::Cursor;
+use std::sync::Once;
 
 const WIDTH: u32 = 800;
 const HEIGHT: u32 = 600;
+
+static FONT_INIT: Once = Once::new();
+
+/// Load a system TTF font and register it with plotters' ab_glyph backend.
+fn ensure_fonts() {
+    FONT_INIT.call_once(|| {
+        let font_paths = [
+            "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf",
+            "/usr/share/fonts/TTF/DejaVuSans.ttf",
+            "/usr/share/fonts/dejavu/DejaVuSans.ttf",
+            "/usr/share/fonts/truetype/liberation/LiberationSans-Regular.ttf",
+        ];
+
+        for path in &font_paths {
+            if let Ok(data) = std::fs::read(path) {
+                let leaked: &'static [u8] = Box::leak(data.into_boxed_slice());
+                let _ = plotters::style::register_font(
+                    "sans-serif",
+                    plotters::style::FontStyle::Normal,
+                    leaked,
+                );
+                let _ = plotters::style::register_font(
+                    "sans-serif",
+                    plotters::style::FontStyle::Bold,
+                    leaked,
+                );
+                return;
+            }
+        }
+    });
+}
 
 /// Fixed color palette for lines (up to 16 lines).
 const LINE_COLORS: &[RGBColor] = &[
@@ -37,6 +69,7 @@ pub fn render_device_chart(
     device_sn: &str,
     history: &DeviceHistory,
 ) -> Result<Vec<u8>, Box<dyn std::error::Error>> {
+    ensure_fonts();
     let mut buf = vec![0u8; (WIDTH * HEIGHT * 3) as usize];
 
     {

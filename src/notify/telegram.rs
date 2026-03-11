@@ -1,13 +1,48 @@
 use anyhow::Result;
+use serde::Deserialize;
 use tracing::{debug, error, warn};
 
 use crate::config::TelegramConfig;
+
+// ─── Telegram getUpdates types ───
+
+#[derive(Debug, Deserialize)]
+pub struct TelegramUpdateResponse {
+    pub ok: bool,
+    #[serde(default)]
+    pub result: Vec<TelegramUpdate>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TelegramUpdate {
+    pub update_id: i64,
+    pub message: Option<TelegramMessage>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TelegramMessage {
+    pub chat: TelegramChat,
+    pub text: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+pub struct TelegramChat {
+    pub id: i64,
+}
+
+// ─── Notifier ───
 
 #[derive(Clone)]
 pub struct TelegramNotifier {
     bot_token: String,
     chat_id: String,
     client: reqwest::Client,
+}
+
+impl TelegramNotifier {
+    pub fn chat_id(&self) -> &str {
+        &self.chat_id
+    }
 }
 
 impl TelegramNotifier {
@@ -108,6 +143,32 @@ impl TelegramNotifier {
         }
 
         Ok(())
+    }
+
+    /// Long-poll for new updates from Telegram Bot API.
+    pub async fn get_updates(&self, offset: i64, timeout: u32) -> Result<Vec<TelegramUpdate>> {
+        let url = format!(
+            "https://api.telegram.org/bot{}/getUpdates",
+            self.bot_token
+        );
+
+        let resp = self
+            .client
+            .get(&url)
+            .query(&[
+                ("offset", offset.to_string()),
+                ("timeout", timeout.to_string()),
+                ("allowed_updates", "message".to_string()),
+            ])
+            .timeout(std::time::Duration::from_secs((timeout + 10) as u64))
+            .send()
+            .await?;
+
+        let body: TelegramUpdateResponse = resp.json().await?;
+        if !body.ok {
+            anyhow::bail!("Telegram getUpdates returned ok=false");
+        }
+        Ok(body.result)
     }
 
     pub async fn send_alerts(&self, messages: &[String]) -> Result<()> {
