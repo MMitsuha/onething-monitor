@@ -132,23 +132,31 @@ fn find_time_range(history: &DeviceHistory) -> (Option<DateTime<Local>>, Option<
 
 fn render_speed_panel(
     area: &DrawingArea<BitMapBackend, plotters::coord::Shift>,
-    line_keys: &[&String],
+    _line_keys: &[&String],
     history: &DeviceHistory,
     time_min: DateTime<Local>,
     time_max: DateTime<Local>,
 ) -> Result<(), Box<dyn std::error::Error>> {
-    // Find max speed across all lines for Y range
-    let mut max_speed: f64 = 1.0;
-    for key in line_keys {
-        if let Some(buf) = history.lines.get(*key) {
-            for s in buf {
-                let up = s.upspeed_bytes.unwrap_or(0) as f64 / 1_000_000.0;
-                let down = s.downspeed_bytes.unwrap_or(0) as f64 / 1_000_000.0;
-                max_speed = max_speed.max(up).max(down);
-            }
+    // Aggregate speed across all lines by timestamp.
+    // All lines share the same timestamps per collection cycle.
+    let mut totals: std::collections::BTreeMap<DateTime<Local>, (f64, f64)> =
+        std::collections::BTreeMap::new();
+
+    for buf in history.lines.values() {
+        for s in buf {
+            let entry = totals.entry(s.timestamp).or_insert((0.0, 0.0));
+            entry.0 += s.upspeed_bytes.unwrap_or(0) as f64 / 1_000_000.0;
+            entry.1 += s.downspeed_bytes.unwrap_or(0) as f64 / 1_000_000.0;
         }
     }
-    max_speed *= 1.1; // 10% headroom
+
+    let up_data: Vec<_> = totals.iter().map(|(t, (up, _))| (*t, *up)).collect();
+    let down_data: Vec<_> = totals.iter().map(|(t, (_, down))| (*t, *down)).collect();
+
+    let max_speed = totals
+        .values()
+        .fold(1.0f64, |m, (up, down)| m.max(*up).max(*down))
+        * 1.1;
 
     let mut chart = ChartBuilder::on(area)
         .caption("Speed (MB/s)", ("sans-serif", 14))
@@ -163,58 +171,25 @@ fn render_speed_panel(
         .y_label_formatter(&|v| format!("{:.1}", v))
         .draw()?;
 
-    for (idx, key) in line_keys.iter().enumerate() {
-        let color = color_for_line(idx);
-        if let Some(buf) = history.lines.get(*key) {
-            // Upload - solid line
-            let up_data: Vec<_> = buf
-                .iter()
-                .filter_map(|s| {
-                    s.upspeed_bytes
-                        .map(|v| (s.timestamp, v as f64 / 1_000_000.0))
-                })
-                .collect();
-            if !up_data.is_empty() {
-                chart
-                    .draw_series(LineSeries::new(up_data, color.stroke_width(1)))?
-                    .label(format!("{} up", key))
-                    .legend(move |(x, y)| {
-                        PathElement::new(vec![(x, y), (x + 15, y)], color.stroke_width(2))
-                    });
-            }
+    let up_color = RGBColor(44, 160, 44); // green
+    let down_color = RGBColor(31, 119, 180); // blue
 
-            // Download - lighter shade
-            let down_data: Vec<_> = buf
-                .iter()
-                .filter_map(|s| {
-                    s.downspeed_bytes
-                        .map(|v| (s.timestamp, v as f64 / 1_000_000.0))
-                })
-                .collect();
-            if !down_data.is_empty() {
-                let dash_color = color.mix(0.5);
-                chart
-                    .draw_series(LineSeries::new(
-                        down_data,
-                        ShapeStyle {
-                            color: dash_color,
-                            filled: false,
-                            stroke_width: 1,
-                        },
-                    ))?
-                    .label(format!("{} down", key))
-                    .legend(move |(x, y)| {
-                        PathElement::new(
-                            vec![(x, y), (x + 15, y)],
-                            ShapeStyle {
-                                color: dash_color,
-                                filled: false,
-                                stroke_width: 2,
-                            },
-                        )
-                    });
-            }
-        }
+    if !up_data.is_empty() {
+        chart
+            .draw_series(LineSeries::new(up_data, up_color.stroke_width(2)))?
+            .label("Upload")
+            .legend(move |(x, y)| {
+                PathElement::new(vec![(x, y), (x + 15, y)], up_color.stroke_width(2))
+            });
+    }
+
+    if !down_data.is_empty() {
+        chart
+            .draw_series(LineSeries::new(down_data, down_color.stroke_width(2)))?
+            .label("Download")
+            .legend(move |(x, y)| {
+                PathElement::new(vec![(x, y), (x + 15, y)], down_color.stroke_width(2))
+            });
     }
 
     chart
