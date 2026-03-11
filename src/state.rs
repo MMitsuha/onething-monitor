@@ -21,9 +21,6 @@ pub struct MonitorState {
     /// device SN -> yesterday income
     #[serde(default)]
     pub device_incomes: HashMap<String, f64>,
-    /// device SN -> recruit status code
-    #[serde(default)]
-    pub recruit_statuses: HashMap<String, i32>,
     /// device SN -> line status summary
     #[serde(default)]
     pub line_statuses: HashMap<String, LineStatus>,

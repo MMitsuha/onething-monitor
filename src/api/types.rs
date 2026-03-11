@@ -154,52 +154,6 @@ pub struct AlarmItem {
     pub message: String,
 }
 
-// ─── Recruit Device List ───
-
-#[derive(Debug, Serialize)]
-pub struct RecruitDeviceListRequest {
-    #[serde(default)]
-    pub page: Option<u32>,
-    #[serde(rename = "pageSize", default)]
-    pub page_size: Option<u32>,
-    #[serde(rename = "platformType")]
-    pub platform_type: u32,
-}
-
-impl Default for RecruitDeviceListRequest {
-    fn default() -> Self {
-        Self {
-            page: Some(1),
-            page_size: Some(200),
-            platform_type: 1,
-        }
-    }
-}
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct RecruitDeviceListData {
-    #[serde(default)]
-    pub list: Vec<RecruitDeviceInfo>,
-    #[serde(default)]
-    pub count: u32,
-}
-
-#[derive(Debug, Deserialize, Clone)]
-pub struct RecruitDeviceInfo {
-    #[serde(default)]
-    pub sn: String,
-    #[serde(rename = "deviceType", default)]
-    pub device_type: String,
-    #[serde(rename = "bizName", default)]
-    pub biz_name: String,
-    #[serde(rename = "bizId", default)]
-    pub biz_id: String,
-    #[serde(default)]
-    pub status: i32,
-    #[serde(rename = "statusText", default)]
-    pub status_text: String,
-}
-
 // ─── Day Bills ───
 
 #[derive(Debug, Serialize)]
@@ -327,19 +281,3 @@ impl DeviceInfo {
     }
 }
 
-pub fn recruit_status_text(status: i32) -> &'static str {
-    match status {
-        0 | 11 => "检测中",
-        1 => "运行中",
-        2 => "报备下机中",
-        3 => "已报备下机",
-        4 => "报备调整审核中",
-        5 => "报备调整中",
-        6 => "调整完验收中",
-        7 => "待整改",
-        8 => "整改完验收中",
-        9 => "已清退",
-        10 => "拉黑",
-        _ => "未知",
-    }
-}

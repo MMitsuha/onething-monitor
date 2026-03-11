@@ -14,7 +14,7 @@ use tracing::{error, info, warn};
 
 use api::client::{ApiError, OnethingClient};
 use config::Config;
-use monitor::{alert_monitor, device_monitor, income_monitor, line_monitor, recruit_monitor};
+use monitor::{alert_monitor, device_monitor, income_monitor, line_monitor};
 use notify::telegram::TelegramNotifier;
 use state::MonitorState;
 
@@ -145,7 +145,7 @@ async fn main() -> Result<()> {
         }
     });
 
-    // Spawn slow loop (income + recruit)
+    // Spawn slow loop (income + line)
     let slow_client = client.clone();
     let slow_notifier = notifier.clone();
     let slow_state = state.clone();
@@ -156,7 +156,7 @@ async fn main() -> Result<()> {
         let interval =
             std::time::Duration::from_secs(slow_config.monitor.income_check_interval_secs);
         info!(
-            "Income/recruit monitor started (interval: {}s)",
+            "Income/line monitor started (interval: {}s)",
             slow_config.monitor.income_check_interval_secs
         );
 
@@ -249,39 +249,8 @@ async fn main() -> Result<()> {
                 }
             }
 
-            // Recruit check
-            match slow_client.get_all_recruit_devices().await {
-                Ok(recruit_devices) => {
-                    let mut s = slow_state.lock().await;
-
-                    let recruit_events =
-                        recruit_monitor::check_recruit_changes(&recruit_devices, &s);
-
-                    if !recruit_events.is_empty() {
-                        let alerts: Vec<String> =
-                            alert_monitor::format_recruit_alerts(&recruit_events)
-                                .into_iter()
-                                .map(|a| a.message)
-                                .collect();
-                        all_alerts.extend(alerts);
-                    }
-
-                    // Update recruit state
-                    s.recruit_statuses.clear();
-                    for d in &recruit_devices {
-                        let key = format!("{}:{}", d.sn, d.biz_id);
-                        s.recruit_statuses.insert(key, d.status);
-                    }
-                    let _ = s.save(&slow_state_path);
-                }
-                Err(ApiError::AuthExpired(_)) => {}
-                Err(e) => {
-                    error!("Recruit check failed: {}", e);
-                }
-            }
-
             if !all_alerts.is_empty() {
-                info!("Income/recruit alerts: {}", all_alerts.len());
+                info!("Income/line alerts: {}", all_alerts.len());
                 if let Err(e) = slow_notifier.send_alerts(&all_alerts).await {
                     error!("Failed to send alerts: {}", e);
                 }

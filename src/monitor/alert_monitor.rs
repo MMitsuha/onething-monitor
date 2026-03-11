@@ -1,8 +1,6 @@
 use super::device_monitor::DeviceEvent;
 use super::income_monitor::{IncomeEvent, IncomeEventKind, IncomeSummary};
 use super::line_monitor::{LineEvent, LineEventKind, LineSummary};
-use super::recruit_monitor::RecruitEvent;
-
 #[derive(Debug)]
 pub enum AlertLevel {
     Critical,
@@ -70,28 +68,6 @@ pub fn format_income_alerts(events: &[IncomeEvent]) -> Vec<Alert> {
             Alert {
                 level,
                 message: msg,
-            }
-        })
-        .collect()
-}
-
-pub fn format_recruit_alerts(events: &[RecruitEvent]) -> Vec<Alert> {
-    events
-        .iter()
-        .map(|e| {
-            use super::recruit_monitor::RecruitEventKind::*;
-            let level = match &e.kind {
-                StatusChanged { new_status, .. } => match *new_status {
-                    9 | 10 => AlertLevel::Critical,
-                    7 => AlertLevel::Warning,
-                    _ => AlertLevel::Info,
-                },
-                NewRecruit { .. } => AlertLevel::Info,
-                Removed { .. } => AlertLevel::Warning,
-            };
-            Alert {
-                level,
-                message: e.description(),
             }
         })
         .collect()
