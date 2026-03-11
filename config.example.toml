@@ -1,0 +1,25 @@
+[api]
+# From browser cookies after logging in to consolepro.onethingcloud.com
+# Open DevTools → Application → Cookies to find these values
+session_id = "your_session_id"
+user_id = "your_user_id"
+
+[telegram]
+bot_token = "123456789:ABCdefGHIjklMNOpqrsTUVwxyz"
+chat_id = "your_chat_id"
+
+[monitor]
+# Device online/offline check interval (seconds)
+device_check_interval_secs = 60
+# Income and recruit status check interval (seconds)
+income_check_interval_secs = 300
+# Hour to send daily income report (0-23, local time)
+daily_report_hour = 9
+# Log level: trace, debug, info, warn, error (overridden by RUST_LOG env var)
+log_level = "info"
+
+[alert]
+# Alert if income drops more than this ratio (0.5 = 50%)
+income_drop_threshold = 0.5
+# Send notification when device recovers from offline
+notify_on_recovery = true
