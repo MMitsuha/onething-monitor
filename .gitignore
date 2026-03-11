@@ -2,3 +2,4 @@
 config.toml
 state.json
 .claude/
+chart_data.json

@@ -1,10 +1,11 @@
+use chrono::Local;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tracing::{error, info, warn};
 
 use crate::api::client::{ApiError, OnethingClient};
 use crate::chart;
-use crate::chart::history::ChartDataStore;
+use crate::chart::history::{ChartDataStore, LineSample};
 use crate::config::Config;
 
 use super::telegram::TelegramNotifier;
@@ -53,6 +54,9 @@ pub async fn run_bot_polling(
                         }
                         "/chart" => {
                             handle_chart(&notifier, &chart_store).await;
+                        }
+                        "/collect" => {
+                            handle_collect(&client, &notifier, &config, &chart_store).await;
                         }
                         _ => {}
                     }
@@ -206,6 +210,116 @@ async fn handle_status(
     if let Err(e) = notifier.send_message(&msg).await {
         error!("Failed to send status response: {}", e);
     }
+}
+
+/// Handle `/collect` - fetch fresh data, store it, then render and send charts.
+async fn handle_collect(
+    client: &OnethingClient,
+    notifier: &TelegramNotifier,
+    config: &Config,
+    chart_store: &Arc<Mutex<ChartDataStore>>,
+) {
+    let devices = match client.get_all_devices().await {
+        Ok(d) => d,
+        Err(ApiError::AuthExpired(msg)) => {
+            let _ = notifier
+                .send_message(&format!("\u{1f511} 登录已过期: {}", msg))
+                .await;
+            return;
+        }
+        Err(e) => {
+            let _ = notifier
+                .send_message(&format!("\u{26a0}\u{fe0f} 获取设备列表失败: {}", e))
+                .await;
+            return;
+        }
+    };
+
+    let online: Vec<_> = devices.iter().filter(|d| d.device_status == 1).collect();
+    if online.is_empty() {
+        let _ = notifier.send_message("\u{1f4ca} 当前无在线设备").await;
+        return;
+    }
+
+    let now = Local::now();
+    let mut collected = 0usize;
+
+    for d in &online {
+        // Cloud API data (loss, RTT)
+        let cloud_data = match client.get_net_line_data(&d.sn, &config.api.user_id).await {
+            Ok(data) => Some(data),
+            Err(ApiError::AuthExpired(_)) => break,
+            Err(e) => {
+                warn!("Failed to fetch cloud line data for {}: {}", d.sn, e);
+                None
+            }
+        };
+
+        // Local device data (speed)
+        let local_data = match client.get_local_line_status(&d.sn).await {
+            Ok(data) => data,
+            Err(e) => {
+                warn!("Failed to fetch local line data for {}: {}", d.sn, e);
+                None
+            }
+        };
+
+        let mut store = chart_store.lock().await;
+
+        if let Some(ref cloud) = cloud_data {
+            for cl in &cloud.line_data_list {
+                let line_key = format!("line{}", cl.line_no);
+                let tag = format!("line{}", cl.line_no);
+                let local_line = local_data.as_ref().and_then(|ld| {
+                    ld.multidial
+                        .iter()
+                        .find(|ll| ll.tag == tag)
+                        .or_else(|| ld.multidial.iter().find(|ll| ll.nic == cl.nic))
+                });
+
+                store.push(
+                    &d.sn,
+                    &d.device_remark,
+                    &line_key,
+                    LineSample {
+                        timestamp: now,
+                        upspeed_bytes: local_line.map(|l| l.upspeed),
+                        downspeed_bytes: local_line.map(|l| l.downspeed),
+                        lost: Some(cl.lost),
+                        rtt: Some(cl.rtt),
+                    },
+                );
+            }
+            collected += 1;
+        } else if let Some(ref local) = local_data {
+            for ll in &local.multidial {
+                store.push(
+                    &d.sn,
+                    &d.device_remark,
+                    &ll.tag,
+                    LineSample {
+                        timestamp: now,
+                        upspeed_bytes: Some(ll.upspeed),
+                        downspeed_bytes: Some(ll.downspeed),
+                        lost: None,
+                        rtt: None,
+                    },
+                );
+            }
+            collected += 1;
+        }
+    }
+
+    // Save to disk
+    {
+        let store = chart_store.lock().await;
+        let _ = store.save(&ChartDataStore::chart_data_path());
+    }
+
+    info!("Bot /collect: collected data for {} devices", collected);
+
+    // Now render and send charts
+    handle_chart(notifier, chart_store).await;
 }
 
 /// Handle `/chart` - render and send current charts immediately.
