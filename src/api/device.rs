@@ -91,4 +91,57 @@ impl OnethingClient {
         self.post("/v1/device/device_filter", &serde_json::json!({}))
             .await
     }
+
+    /// Get signed URL for local device access via frp tunnel.
+    pub async fn generate_url(&self, sn: &str) -> Result<GenerateUrlData, ApiError> {
+        let req = GenerateUrlRequest {
+            sn: sn.to_string(),
+        };
+        self.post("/v1/device/generate_url", &req).await
+    }
+
+    /// Fetch real-time line status (speed data) from the local device via frp tunnel.
+    /// Returns None if the local device is unreachable (frp flaky).
+    pub async fn get_local_line_status(
+        &self,
+        sn: &str,
+    ) -> Result<Option<LocalMultPPPoEStatus>, ApiError> {
+        // Step 1: get signed URL
+        let url_data = self.generate_url(sn).await?;
+        let base_url = url_data.url.trim_end_matches('/').to_string();
+
+        // Step 2: extract query params from the signed URL
+        // URL format: http://{sn}.x86localweb.onethingcloud.com?expire=...&sign=...
+        let query_params = if let Some(idx) = base_url.find('?') {
+            &base_url[idx..]
+        } else {
+            ""
+        };
+
+        let local_url = if let Some(idx) = base_url.find('?') {
+            format!(
+                "{}/v1.0/devices/multpppoe/status{}",
+                &base_url[..idx],
+                query_params
+            )
+        } else {
+            format!("{}/v1.0/devices/multpppoe/status", base_url)
+        };
+
+        // Step 3: fetch from local device (may fail due to frp tunnel issues)
+        match self.get_local(&local_url).await {
+            Ok(text) => match serde_json::from_str::<LocalMultPPPoEStatus>(&text) {
+                Ok(status) => Ok(Some(status)),
+                Err(e) => {
+                    tracing::warn!("Failed to parse local line status for {}: {}", sn, e);
+                    tracing::debug!("Raw local response: {}", text);
+                    Ok(None)
+                }
+            },
+            Err(e) => {
+                tracing::warn!("Failed to reach local device {}: {}", sn, e);
+                Ok(None)
+            }
+        }
+    }
 }

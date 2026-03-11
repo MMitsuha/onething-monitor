@@ -268,6 +268,58 @@ pub struct NetLineInfo {
     pub line_no: u32,
 }
 
+// ─── Generate URL (local device access) ───
+
+#[derive(Debug, Serialize)]
+pub struct GenerateUrlRequest {
+    pub sn: String,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct GenerateUrlData {
+    pub url: String,
+}
+
+// ─── Local Device MultPPPoE Status ───
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct LocalMultPPPoEStatus {
+    #[serde(default)]
+    pub sn: String,
+    #[serde(default)]
+    pub totalline: u32,
+    #[serde(default)]
+    pub connectedline: u32,
+    #[serde(default)]
+    pub multidial: Vec<LocalLineInfo>,
+}
+
+#[derive(Debug, Deserialize, Clone)]
+pub struct LocalLineInfo {
+    #[serde(default)]
+    pub tag: String,
+    #[serde(default)]
+    pub ipaddr: String,
+    #[serde(default)]
+    pub status: String,
+    #[serde(default)]
+    pub upspeed: u64,
+    #[serde(default)]
+    pub downspeed: u64,
+    #[serde(default)]
+    pub sentbytes: String,
+    #[serde(default)]
+    pub recvbytes: String,
+    #[serde(default)]
+    pub nic: String,
+    #[serde(default)]
+    pub ipaddr6: String,
+    #[serde(default)]
+    pub vlanid: u32,
+    #[serde(default)]
+    pub lineid: u32,
+}
+
 // ─── Status helpers ───
 
 impl DeviceInfo {

@@ -1,4 +1,5 @@
 mod api;
+mod chart;
 mod config;
 mod monitor;
 mod notify;
@@ -13,6 +14,7 @@ use tokio::sync::Mutex;
 use tracing::{error, info, warn};
 
 use api::client::{ApiError, OnethingClient};
+use chart::history::{ChartDataStore, LineSample};
 use config::Config;
 use monitor::{alert_monitor, device_monitor, income_monitor, line_monitor};
 use notify::telegram::TelegramNotifier;
@@ -41,6 +43,12 @@ async fn main() -> Result<()> {
     let notifier = TelegramNotifier::new(&config.telegram);
     let state_path = MonitorState::state_path();
     let state = Arc::new(Mutex::new(MonitorState::load(&state_path)));
+
+    // Chart data store
+    let chart_store = Arc::new(Mutex::new(ChartDataStore::new(
+        config.monitor.chart_history_hours,
+        config.monitor.income_check_interval_secs,
+    )));
 
     // Startup: fetch devices and send summary
     info!("Fetching initial device list...");
@@ -145,19 +153,31 @@ async fn main() -> Result<()> {
         }
     });
 
-    // Spawn slow loop (income + line)
+    // Spawn slow loop (income + line + chart data collection)
     let slow_client = client.clone();
     let slow_notifier = notifier.clone();
     let slow_state = state.clone();
     let slow_config = config.clone();
     let slow_state_path = state_path.clone();
+    let slow_chart_store = chart_store.clone();
 
     let slow_handle = tokio::spawn(async move {
         let interval =
             std::time::Duration::from_secs(slow_config.monitor.income_check_interval_secs);
+        let chart_enabled = slow_config.monitor.chart_interval_secs > 0;
+        let chart_interval = std::time::Duration::from_secs(
+            slow_config.monitor.chart_interval_secs.max(1),
+        );
+        let mut last_chart_send = std::time::Instant::now();
+
         info!(
-            "Income/line monitor started (interval: {}s)",
-            slow_config.monitor.income_check_interval_secs
+            "Income/line monitor started (interval: {}s, chart: {})",
+            slow_config.monitor.income_check_interval_secs,
+            if chart_enabled {
+                format!("every {}s", slow_config.monitor.chart_interval_secs)
+            } else {
+                "disabled".to_string()
+            }
         );
 
         loop {
@@ -211,6 +231,23 @@ async fn main() -> Result<()> {
 
                     drop(s);
 
+                    // ── Collect chart data ──
+                    if chart_enabled {
+                        collect_chart_data(
+                            &slow_client,
+                            &devices,
+                            &line_data_map,
+                            &slow_chart_store,
+                        )
+                        .await;
+                    }
+
+                    // ── Send charts on interval ──
+                    if chart_enabled && last_chart_send.elapsed() >= chart_interval {
+                        send_charts(&slow_chart_store, &slow_notifier).await;
+                        last_chart_send = std::time::Instant::now();
+                    }
+
                     // Daily report
                     let now = Local::now();
                     let today = now.format("%Y-%m-%d").to_string();
@@ -225,6 +262,11 @@ async fn main() -> Result<()> {
                         if let Err(e) = slow_notifier.send_message(&report).await {
                             error!("Failed to send daily report: {}", e);
                         } else {
+                            // Also send charts with daily report
+                            if chart_enabled {
+                                send_charts(&slow_chart_store, &slow_notifier).await;
+                                last_chart_send = std::time::Instant::now();
+                            }
                             s.last_daily_report_date = today;
                         }
                     }
@@ -305,4 +347,121 @@ async fn fetch_line_data(
         }
     }
     map
+}
+
+/// Collect chart data from both cloud and local device APIs.
+async fn collect_chart_data(
+    client: &OnethingClient,
+    devices: &[api::types::DeviceInfo],
+    line_data_map: &HashMap<String, (String, api::types::NetLineDataResponse)>,
+    chart_store: &Arc<Mutex<ChartDataStore>>,
+) {
+    let now = Local::now();
+
+    for d in devices {
+        if d.device_status != 1 {
+            continue;
+        }
+
+        // Get cloud API data (loss, rtt) - already fetched
+        let cloud_lines = line_data_map.get(&d.sn);
+
+        // Get local device data (speed) - may fail
+        let local_status = match client.get_local_line_status(&d.sn).await {
+            Ok(status) => status,
+            Err(e) => {
+                warn!("Failed to get local line status for {}: {}", d.sn, e);
+                None
+            }
+        };
+
+        let mut store = chart_store.lock().await;
+
+        // Build a combined view: match lines by NIC name or line number
+        if let Some((_remark, cloud_data)) = cloud_lines {
+            for cloud_line in &cloud_data.line_data_list {
+                let line_key = if !cloud_line.nic.is_empty() {
+                    cloud_line.nic.clone()
+                } else {
+                    format!("line{}", cloud_line.line_no)
+                };
+
+                // Try to find matching local line data by NIC or tag
+                let local_line = local_status.as_ref().and_then(|ls| {
+                    ls.multidial.iter().find(|ll| {
+                        ll.nic == cloud_line.nic
+                            || ll.tag == format!("line{}", cloud_line.line_no)
+                    })
+                });
+
+                let sample = LineSample {
+                    timestamp: now,
+                    upspeed_bytes: local_line.map(|l| l.upspeed),
+                    downspeed_bytes: local_line.map(|l| l.downspeed),
+                    lost: Some(cloud_line.lost),
+                    rtt: Some(cloud_line.rtt),
+                };
+
+                store.push(&d.sn, &d.device_remark, &line_key, sample);
+            }
+        } else if let Some(local_data) = &local_status {
+            // No cloud data, but have local data
+            for ll in &local_data.multidial {
+                let line_key = if !ll.nic.is_empty() {
+                    ll.nic.clone()
+                } else {
+                    ll.tag.clone()
+                };
+
+                let sample = LineSample {
+                    timestamp: now,
+                    upspeed_bytes: Some(ll.upspeed),
+                    downspeed_bytes: Some(ll.downspeed),
+                    lost: None,
+                    rtt: None,
+                };
+
+                store.push(&d.sn, &d.device_remark, &line_key, sample);
+            }
+        }
+    }
+}
+
+/// Render and send charts for all devices.
+/// Collects all chart PNGs while holding the lock, then sends them.
+async fn send_charts(
+    chart_store: &Arc<Mutex<ChartDataStore>>,
+    notifier: &TelegramNotifier,
+) {
+    let charts: Vec<(String, Vec<u8>)> = {
+        let store = chart_store.lock().await;
+        let sns = store.device_sns();
+        let mut result = Vec::new();
+
+        for sn in &sns {
+            if !store.has_sufficient_data(sn, 2) {
+                continue;
+            }
+            if let Some(history) = store.get_device(sn) {
+                match chart::renderer::render_device_chart(sn, history) {
+                    Ok(png_bytes) => {
+                        let caption = format!("{} - {}", history.remark, sn);
+                        result.push((caption, png_bytes));
+                    }
+                    Err(e) => {
+                        error!("Failed to render chart for {}: {}", sn, e);
+                    }
+                }
+            }
+        }
+        result
+    };
+
+    for (caption, png_bytes) in charts {
+        if let Err(e) = notifier.send_photo(png_bytes, &caption).await {
+            error!("Failed to send chart: {}", e);
+        }
+        // Small delay between photos to respect rate limits
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+    }
 }

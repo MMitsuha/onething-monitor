@@ -34,6 +34,12 @@ pub struct MonitorConfig {
     pub daily_report_hour: u32,
     #[serde(default = "default_log_level")]
     pub log_level: String,
+    /// Interval in seconds between chart generation/sending. 0 = disabled.
+    #[serde(default = "default_chart_interval")]
+    pub chart_interval_secs: u64,
+    /// How many hours of history to show in charts.
+    #[serde(default = "default_chart_history_hours")]
+    pub chart_history_hours: u64,
 }
 
 #[derive(Debug, Deserialize, Clone)]
@@ -74,6 +80,12 @@ fn default_line_loss_threshold() -> f64 {
 fn default_line_rtt_threshold() -> f64 {
     100.0
 }
+fn default_chart_interval() -> u64 {
+    3600
+}
+fn default_chart_history_hours() -> u64 {
+    24
+}
 
 impl Default for MonitorConfig {
     fn default() -> Self {
@@ -82,6 +94,8 @@ impl Default for MonitorConfig {
             income_check_interval_secs: default_income_interval(),
             daily_report_hour: default_report_hour(),
             log_level: default_log_level(),
+            chart_interval_secs: default_chart_interval(),
+            chart_history_hours: default_chart_history_hours(),
         }
     }
 }

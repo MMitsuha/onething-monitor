@@ -81,6 +81,35 @@ impl TelegramNotifier {
         Ok(())
     }
 
+    /// Send a photo (PNG bytes) with an optional caption via Telegram sendPhoto.
+    pub async fn send_photo(&self, png_bytes: Vec<u8>, caption: &str) -> Result<()> {
+        let url = format!(
+            "https://api.telegram.org/bot{}/sendPhoto",
+            self.bot_token
+        );
+
+        let photo_part = reqwest::multipart::Part::bytes(png_bytes)
+            .file_name("chart.png")
+            .mime_str("image/png")?;
+
+        let form = reqwest::multipart::Form::new()
+            .text("chat_id", self.chat_id.clone())
+            .text("caption", caption.to_string())
+            .part("photo", photo_part);
+
+        let resp = self.client.post(&url).multipart(form).send().await?;
+
+        if !resp.status().is_success() {
+            let body = resp.text().await.unwrap_or_default();
+            error!("Telegram sendPhoto error: {}", body);
+            anyhow::bail!("Telegram sendPhoto failed: {}", body);
+        } else {
+            debug!("Telegram photo sent successfully");
+        }
+
+        Ok(())
+    }
+
     pub async fn send_alerts(&self, messages: &[String]) -> Result<()> {
         if messages.is_empty() {
             return Ok(());

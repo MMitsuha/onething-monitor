@@ -12,6 +12,7 @@ const BASE_URL: &str = "https://api-consolepro.onethingcloud.com";
 pub struct OnethingClient {
     client: reqwest::Client,
     base_url: String,
+    cookie_value: String,
 }
 
 #[derive(Debug)]
@@ -56,7 +57,34 @@ impl OnethingClient {
         Ok(Self {
             client,
             base_url: BASE_URL.to_string(),
+            cookie_value: cookie_value.clone(),
         })
+    }
+
+    /// GET request to an arbitrary URL (used for local device API).
+    /// Returns the raw response text. The caller is responsible for parsing.
+    pub async fn get_local(&self, url: &str) -> Result<String, ApiError> {
+        debug!("GET {}", url);
+        let response = self
+            .client
+            .get(url)
+            .timeout(std::time::Duration::from_secs(10))
+            .header(COOKIE, &self.cookie_value)
+            .send()
+            .await?;
+
+        let status = response.status();
+        if !status.is_success() {
+            return Err(ApiError::Other(format!(
+                "Local API HTTP {}: {}",
+                status.as_u16(),
+                url
+            )));
+        }
+
+        let text = response.text().await.map_err(ApiError::HttpError)?;
+        trace!("Local response: {}", text);
+        Ok(text)
     }
 
     pub async fn post<Req, Resp>(&self, path: &str, body: &Req) -> Result<Resp, ApiError>
