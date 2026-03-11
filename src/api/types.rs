@@ -12,7 +12,7 @@ where
         Number(f64),
     }
     match StringOrNumber::deserialize(deserializer)? {
-        StringOrNumber::String(s) => s.parse::<f64>().map_err(serde::de::Error::custom),
+        StringOrNumber::String(s) => Ok(s.parse::<f64>().unwrap_or(0.0)),
         StringOrNumber::Number(n) => Ok(n),
     }
 }
