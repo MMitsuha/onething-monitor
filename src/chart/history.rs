@@ -62,10 +62,7 @@ impl ChartDataStore {
             });
         device.remark = remark.to_string();
 
-        let buf = device
-            .lines
-            .entry(line_key.to_string())
-            .or_default();
+        let buf = device.lines.entry(line_key.to_string()).or_default();
         buf.push_back(sample);
         while buf.len() > self.max_samples {
             buf.pop_front();
