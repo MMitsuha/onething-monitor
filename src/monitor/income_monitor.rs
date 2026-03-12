@@ -33,6 +33,7 @@ pub struct IncomeSummary {
 #[derive(Debug)]
 pub struct DeviceIncome {
     pub sn: String,
+    #[allow(dead_code)]
     pub device_type: String,
     pub remark: String,
     pub income: f64,

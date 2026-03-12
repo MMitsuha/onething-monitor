@@ -18,7 +18,7 @@ pub struct OnethingClient {
 #[derive(Debug)]
 pub enum ApiError {
     AuthExpired(String),
-    ApiError { code: i32, msg: String },
+    Api { code: i32, msg: String },
     HttpError(reqwest::Error),
     Other(String),
 }
@@ -27,7 +27,7 @@ impl std::fmt::Display for ApiError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
             ApiError::AuthExpired(msg) => write!(f, "Auth expired: {}", msg),
-            ApiError::ApiError { code, msg } => write!(f, "API error (code={}): {}", code, msg),
+            ApiError::Api { code, msg } => write!(f, "API error (code={}): {}", code, msg),
             ApiError::HttpError(e) => write!(f, "HTTP error: {}", e),
             ApiError::Other(msg) => write!(f, "{}", msg),
         }
@@ -123,13 +123,13 @@ impl OnethingClient {
                 "API error on {}: iRet={}, sMsg={}",
                 path, api_resp.i_ret, api_resp.s_msg
             );
-            return Err(ApiError::ApiError {
+            return Err(ApiError::Api {
                 code: api_resp.i_ret,
                 msg: api_resp.s_msg,
             });
         }
 
-        api_resp.data.ok_or_else(|| ApiError::ApiError {
+        api_resp.data.ok_or_else(|| ApiError::Api {
             code: api_resp.i_ret,
             msg: "Response data is null".into(),
         })

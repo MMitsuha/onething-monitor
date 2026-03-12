@@ -32,6 +32,7 @@ impl OnethingClient {
         Ok(all_devices)
     }
 
+    #[allow(dead_code)]
     pub async fn get_device_alarm_detail(&self, sn: &str) -> Result<DeviceAlarmData, ApiError> {
         let req = DeviceAlarmRequest { sn: sn.to_string() };
         self.post("/v1/device/device_alarm_detail", &req).await
@@ -86,6 +87,7 @@ impl OnethingClient {
         }
     }
 
+    #[allow(dead_code)]
     pub async fn get_filter_config(&self) -> Result<FilterConfigData, ApiError> {
         self.post("/v1/device/device_filter", &serde_json::json!({}))
             .await

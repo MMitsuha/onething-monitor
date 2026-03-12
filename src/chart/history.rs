@@ -65,7 +65,7 @@ impl ChartDataStore {
         let buf = device
             .lines
             .entry(line_key.to_string())
-            .or_insert_with(VecDeque::new);
+            .or_default();
         buf.push_back(sample);
         while buf.len() > self.max_samples {
             buf.pop_front();

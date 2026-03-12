@@ -2,6 +2,7 @@ use super::device_monitor::DeviceEvent;
 use super::income_monitor::{IncomeEvent, IncomeEventKind, IncomeSummary};
 use super::line_monitor::{LineEvent, LineEventKind, LineSummary};
 #[derive(Debug)]
+#[allow(dead_code)]
 pub enum AlertLevel {
     Critical,
     Warning,
@@ -10,6 +11,7 @@ pub enum AlertLevel {
 
 #[derive(Debug)]
 pub struct Alert {
+    #[allow(dead_code)]
     pub level: AlertLevel,
     pub message: String,
 }

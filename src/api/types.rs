@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 use serde::{Deserialize, Deserializer, Serialize};
 
 /// Deserialize a number that may come as a string (e.g. "6145") or a number (6145).

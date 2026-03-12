@@ -66,7 +66,7 @@ pub fn check_line_changes(
                 .line_data_list
                 .iter()
                 .filter(|l| l.status != 1)
-                .map(|l| ProblemLine::from_line_info(l))
+                .map(ProblemLine::from_line_info)
                 .collect();
             events.push(LineEvent {
                 sn: sn.clone(),
@@ -95,7 +95,7 @@ pub fn check_line_changes(
                 .line_data_list
                 .iter()
                 .filter(|l| l.lost >= loss_threshold * 100.0)
-                .map(|l| ProblemLine::from_line_info(l))
+                .map(ProblemLine::from_line_info)
                 .collect();
             events.push(LineEvent {
                 sn: sn.clone(),
@@ -124,7 +124,7 @@ pub fn check_line_changes(
                 .line_data_list
                 .iter()
                 .filter(|l| l.rtt >= rtt_threshold)
-                .map(|l| ProblemLine::from_line_info(l))
+                .map(ProblemLine::from_line_info)
                 .collect();
             events.push(LineEvent {
                 sn: sn.clone(),
@@ -173,7 +173,7 @@ pub fn build_line_summary(
     line_data_map: &HashMap<String, (String, NetLineDataResponse)>,
 ) -> LineSummary {
     let mut summary = LineSummary::default();
-    for (_sn, (_remark, data)) in line_data_map {
+    for (_remark, data) in line_data_map.values() {
         summary.total_lines += data.count;
         summary.total_offline += data.offline_num;
         summary.total_lost_high += data.lost_high_num;
