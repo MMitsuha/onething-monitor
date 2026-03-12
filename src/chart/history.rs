@@ -52,17 +52,14 @@ impl ChartDataStore {
     }
 
     /// Push a sample for a specific device + line.
-    pub fn push(
-        &mut self,
-        sn: &str,
-        remark: &str,
-        line_key: &str,
-        sample: LineSample,
-    ) {
-        let device = self.data.entry(sn.to_string()).or_insert_with(|| DeviceHistory {
-            remark: remark.to_string(),
-            lines: HashMap::new(),
-        });
+    pub fn push(&mut self, sn: &str, remark: &str, line_key: &str, sample: LineSample) {
+        let device = self
+            .data
+            .entry(sn.to_string())
+            .or_insert_with(|| DeviceHistory {
+                remark: remark.to_string(),
+                lines: HashMap::new(),
+            });
         device.remark = remark.to_string();
 
         let buf = device

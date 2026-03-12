@@ -44,10 +44,7 @@ pub fn format_income_alerts(events: &[IncomeEvent]) -> Vec<Alert> {
             let (level, msg) = match &e.kind {
                 IncomeEventKind::ZeroIncome => (
                     AlertLevel::Warning,
-                    format!(
-                        "\u{1f4b0} {} ({}) 昨日收益为0",
-                        name, e.device_type
-                    ),
+                    format!("\u{1f4b0} {} ({}) 昨日收益为0", name, e.device_type),
                 ),
                 IncomeEventKind::SignificantDrop {
                     previous,
@@ -85,10 +82,7 @@ pub fn format_line_alerts(events: &[LineEvent]) -> Vec<Alert> {
             let (level, mut msg) = match &e.kind {
                 LineEventKind::OfflineIncreased { prev, current } => (
                     AlertLevel::Warning,
-                    format!(
-                        "\u{1f50c} {} 离线线路: {} \u{2192} {}",
-                        name, prev, current
-                    ),
+                    format!("\u{1f50c} {} 离线线路: {} \u{2192} {}", name, prev, current),
                 ),
                 LineEventKind::LostHighIncreased { prev, current } => (
                     AlertLevel::Warning,
@@ -106,10 +100,7 @@ pub fn format_line_alerts(events: &[LineEvent]) -> Vec<Alert> {
                 ),
                 LineEventKind::Recovered { field_name, prev } => (
                     AlertLevel::Info,
-                    format!(
-                        "\u{2705} {} {}已全部恢复 (之前:{})",
-                        name, field_name, prev
-                    ),
+                    format!("\u{2705} {} {}已全部恢复 (之前:{})", name, field_name, prev),
                 ),
             };
 
@@ -124,9 +115,7 @@ pub fn format_line_alerts(events: &[LineEvent]) -> Vec<Alert> {
                         LineEventKind::RttHighIncreased { .. } => {
                             format!("时延:{:.0}ms", pl.rtt)
                         }
-                        _ => {
-                            super::line_monitor::line_status_text(pl.status).to_string()
-                        }
+                        _ => super::line_monitor::line_status_text(pl.status).to_string(),
                     };
                     msg.push_str(&format!(
                         "\n  \u{b7} {} ({}) {} - {}",
@@ -134,10 +123,7 @@ pub fn format_line_alerts(events: &[LineEvent]) -> Vec<Alert> {
                     ));
                 }
                 if e.problem_lines.len() > 5 {
-                    msg.push_str(&format!(
-                        "\n  ... 还有{}条",
-                        e.problem_lines.len() - 5
-                    ));
+                    msg.push_str(&format!("\n  ... 还有{}条", e.problem_lines.len() - 5));
                 }
             }
 

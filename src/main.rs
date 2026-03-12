@@ -62,8 +62,7 @@ async fn main() -> Result<()> {
             let line_data_map = fetch_line_data(&client, &devices, &config.api.user_id).await;
             let line_summary = line_monitor::build_line_summary(&line_data_map);
 
-            let msg =
-                alert_monitor::format_startup_summary(&summary, Some(&line_summary));
+            let msg = alert_monitor::format_startup_summary(&summary, Some(&line_summary));
             if let Err(e) = notifier.send_message(&msg).await {
                 error!("Failed to send startup message: {}", e);
             }
@@ -168,9 +167,8 @@ async fn main() -> Result<()> {
         let interval =
             std::time::Duration::from_secs(slow_config.monitor.income_check_interval_secs);
         let chart_enabled = slow_config.monitor.chart_interval_secs > 0;
-        let chart_interval = std::time::Duration::from_secs(
-            slow_config.monitor.chart_interval_secs.max(1),
-        );
+        let chart_interval =
+            std::time::Duration::from_secs(slow_config.monitor.chart_interval_secs.max(1));
         let mut last_chart_send = std::time::Instant::now();
 
         info!(
@@ -208,12 +206,8 @@ async fn main() -> Result<()> {
                     }
 
                     // Line status check (online devices only)
-                    let line_data_map = fetch_line_data(
-                        &slow_client,
-                        &devices,
-                        &slow_config.api.user_id,
-                    )
-                    .await;
+                    let line_data_map =
+                        fetch_line_data(&slow_client, &devices, &slow_config.api.user_id).await;
 
                     let line_events = line_monitor::check_line_changes(
                         &line_data_map,
@@ -224,11 +218,10 @@ async fn main() -> Result<()> {
                     );
 
                     if !line_events.is_empty() {
-                        let alerts: Vec<String> =
-                            alert_monitor::format_line_alerts(&line_events)
-                                .into_iter()
-                                .map(|a| a.message)
-                                .collect();
+                        let alerts: Vec<String> = alert_monitor::format_line_alerts(&line_events)
+                            .into_iter()
+                            .map(|a| a.message)
+                            .collect();
                         all_alerts.extend(alerts);
                     }
 
@@ -289,10 +282,8 @@ async fn main() -> Result<()> {
                         devices.iter().any(|d| d.sn == *sn && d.device_status == 1)
                     });
                     for (sn, (_remark, data)) in &line_data_map {
-                        s.line_statuses.insert(
-                            sn.clone(),
-                            line_monitor::line_status_from_response(data),
-                        );
+                        s.line_statuses
+                            .insert(sn.clone(), line_monitor::line_status_from_response(data));
                     }
                     let _ = s.save(&slow_state_path);
                 }
@@ -446,10 +437,7 @@ async fn collect_chart_data(
 
 /// Render and send charts for all devices.
 /// Collects all chart PNGs while holding the lock, then sends them.
-async fn send_charts(
-    chart_store: &Arc<Mutex<ChartDataStore>>,
-    notifier: &TelegramNotifier,
-) {
+async fn send_charts(chart_store: &Arc<Mutex<ChartDataStore>>, notifier: &TelegramNotifier) {
     let charts: Vec<(String, Vec<u8>)> = {
         let store = chart_store.lock().await;
         let sns = store.device_sns();

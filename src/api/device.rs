@@ -54,8 +54,7 @@ impl OnethingClient {
                 page,
                 page_size: 20,
             };
-            let mut data: NetLineDataResponse =
-                self.post("/v1/device/net_line_data", &req).await?;
+            let mut data: NetLineDataResponse = self.post("/v1/device/net_line_data", &req).await?;
             let fetched = data.line_data_list.len();
             all_lines.append(&mut data.line_data_list);
 
@@ -94,9 +93,7 @@ impl OnethingClient {
 
     /// Get signed URL for local device access via frp tunnel.
     pub async fn generate_url(&self, sn: &str) -> Result<GenerateUrlData, ApiError> {
-        let req = GenerateUrlRequest {
-            sn: sn.to_string(),
-        };
+        let req = GenerateUrlRequest { sn: sn.to_string() };
         self.post("/v1/device/generate_url", &req).await
     }
 

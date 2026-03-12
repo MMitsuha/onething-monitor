@@ -111,7 +111,11 @@ pub struct DeviceInfo {
     pub device_status_error: String,
     #[serde(rename = "deviceGroup", default)]
     pub device_group: String,
-    #[serde(rename = "yIncome", default, deserialize_with = "deserialize_f64_from_string")]
+    #[serde(
+        rename = "yIncome",
+        default,
+        deserialize_with = "deserialize_f64_from_string"
+    )]
     pub y_income: f64,
     #[serde(rename = "bizType", default)]
     pub biz_type: String,
@@ -332,4 +336,3 @@ impl DeviceInfo {
         }
     }
 }
-

@@ -71,11 +71,7 @@ pub async fn run_bot_polling(
 }
 
 /// Handle `/status` - fetch and display real-time line status for all online devices.
-async fn handle_status(
-    client: &OnethingClient,
-    notifier: &TelegramNotifier,
-    config: &Config,
-) {
+async fn handle_status(client: &OnethingClient, notifier: &TelegramNotifier, config: &Config) {
     let devices = match client.get_all_devices().await {
         Ok(d) => d,
         Err(ApiError::AuthExpired(msg)) => {
@@ -95,9 +91,7 @@ async fn handle_status(
     let online_devices: Vec<_> = devices.iter().filter(|d| d.device_status == 1).collect();
 
     if online_devices.is_empty() {
-        let _ = notifier
-            .send_message("\u{1f4ca} 当前无在线设备")
-            .await;
+        let _ = notifier.send_message("\u{1f4ca} 当前无在线设备").await;
         return;
     }
 
@@ -135,10 +129,7 @@ async fn handle_status(
 
         if let Some(ref cloud) = cloud_data {
             let online = cloud.count - cloud.offline_num;
-            msg.push_str(&format!(
-                "线路: {}/{} 在线\n",
-                online, cloud.count
-            ));
+            msg.push_str(&format!("线路: {}/{} 在线\n", online, cloud.count));
         }
 
         // Build per-line status by merging cloud + local data
@@ -192,11 +183,7 @@ async fn handle_status(
                 };
                 let up_mb = ll.upspeed as f64 / 1_000_000.0;
                 let down_mb = ll.downspeed as f64 / 1_000_000.0;
-                let nic_display = if ll.nic.is_empty() {
-                    &ll.tag
-                } else {
-                    &ll.nic
-                };
+                let nic_display = if ll.nic.is_empty() { &ll.tag } else { &ll.nic };
                 msg.push_str(&format!(
                     "  {} {}  {}  \u{2191}{:.1} \u{2193}{:.1} MB/s\n",
                     status_icon, nic_display, ll.ipaddr, up_mb, down_mb,
@@ -323,10 +310,7 @@ async fn handle_collect(
 }
 
 /// Handle `/chart` - render and send current charts immediately.
-async fn handle_chart(
-    notifier: &TelegramNotifier,
-    chart_store: &Arc<Mutex<ChartDataStore>>,
-) {
+async fn handle_chart(notifier: &TelegramNotifier, chart_store: &Arc<Mutex<ChartDataStore>>) {
     let charts: Vec<(String, Vec<u8>)> = {
         let store = chart_store.lock().await;
         let sns = store.device_sns();

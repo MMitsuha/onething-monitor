@@ -40,22 +40,22 @@ fn ensure_fonts() {
 
 /// Fixed color palette for lines (up to 16 lines).
 const LINE_COLORS: &[RGBColor] = &[
-    RGBColor(31, 119, 180),   // blue
-    RGBColor(255, 127, 14),   // orange
-    RGBColor(44, 160, 44),    // green
-    RGBColor(214, 39, 40),    // red
-    RGBColor(148, 103, 189),  // purple
-    RGBColor(140, 86, 75),    // brown
-    RGBColor(227, 119, 194),  // pink
-    RGBColor(127, 127, 127),  // gray
-    RGBColor(188, 189, 34),   // olive
-    RGBColor(23, 190, 207),   // cyan
-    RGBColor(65, 68, 81),     // dark gray
-    RGBColor(255, 187, 120),  // light orange
-    RGBColor(152, 223, 138),  // light green
-    RGBColor(255, 152, 150),  // light red
-    RGBColor(197, 176, 213),  // light purple
-    RGBColor(196, 156, 148),  // light brown
+    RGBColor(31, 119, 180),  // blue
+    RGBColor(255, 127, 14),  // orange
+    RGBColor(44, 160, 44),   // green
+    RGBColor(214, 39, 40),   // red
+    RGBColor(148, 103, 189), // purple
+    RGBColor(140, 86, 75),   // brown
+    RGBColor(227, 119, 194), // pink
+    RGBColor(127, 127, 127), // gray
+    RGBColor(188, 189, 34),  // olive
+    RGBColor(23, 190, 207),  // cyan
+    RGBColor(65, 68, 81),    // dark gray
+    RGBColor(255, 187, 120), // light orange
+    RGBColor(152, 223, 138), // light green
+    RGBColor(255, 152, 150), // light red
+    RGBColor(197, 176, 213), // light purple
+    RGBColor(196, 156, 148), // light brown
 ];
 
 fn color_for_line(idx: usize) -> RGBColor {

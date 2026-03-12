@@ -114,7 +114,11 @@ pub fn build_income_summary(devices: &[DeviceInfo]) -> IncomeSummary {
     }
 
     // Sort by income descending
-    per_device.sort_by(|a, b| b.income.partial_cmp(&a.income).unwrap_or(std::cmp::Ordering::Equal));
+    per_device.sort_by(|a, b| {
+        b.income
+            .partial_cmp(&a.income)
+            .unwrap_or(std::cmp::Ordering::Equal)
+    });
 
     IncomeSummary {
         total_income: total,

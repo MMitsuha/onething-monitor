@@ -22,12 +22,12 @@ pub enum DeviceEventKind {
 impl DeviceEvent {
     pub fn emoji(&self) -> &str {
         match &self.kind {
-            DeviceEventKind::WentOffline => "\u{1f534}",       // red circle
-            DeviceEventKind::WentOnline => "\u{1f7e2}",        // green circle
-            DeviceEventKind::WentError { .. } => "\u{26a0}\u{fe0f}",  // warning
-            DeviceEventKind::RecoveredFromError => "\u{2705}",  // check
-            DeviceEventKind::NewDevice { .. } => "\u{1f195}",   // new
-            DeviceEventKind::Disappeared => "\u{274c}",         // cross
+            DeviceEventKind::WentOffline => "\u{1f534}", // red circle
+            DeviceEventKind::WentOnline => "\u{1f7e2}",  // green circle
+            DeviceEventKind::WentError { .. } => "\u{26a0}\u{fe0f}", // warning
+            DeviceEventKind::RecoveredFromError => "\u{2705}", // check
+            DeviceEventKind::NewDevice { .. } => "\u{1f195}", // new
+            DeviceEventKind::Disappeared => "\u{274c}",  // cross
         }
     }
 
@@ -42,7 +42,12 @@ impl DeviceEvent {
                 format!("{} {} ({}) 已离线", self.emoji(), name, self.device_type)
             }
             DeviceEventKind::WentOnline => {
-                format!("{} {} ({}) 已恢复在线", self.emoji(), name, self.device_type)
+                format!(
+                    "{} {} ({}) 已恢复在线",
+                    self.emoji(),
+                    name,
+                    self.device_type
+                )
             }
             DeviceEventKind::WentError { error } => {
                 format!(

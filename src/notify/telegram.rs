@@ -55,10 +55,7 @@ impl TelegramNotifier {
     }
 
     pub async fn send_message(&self, text: &str) -> Result<()> {
-        let url = format!(
-            "https://api.telegram.org/bot{}/sendMessage",
-            self.bot_token
-        );
+        let url = format!("https://api.telegram.org/bot{}/sendMessage", self.bot_token);
 
         // Split long messages (Telegram limit is 4096 chars)
         let chunks = split_message(text, 4000);
@@ -98,10 +95,7 @@ impl TelegramNotifier {
     }
 
     async fn send_plain_message(&self, text: &str) -> Result<()> {
-        let url = format!(
-            "https://api.telegram.org/bot{}/sendMessage",
-            self.bot_token
-        );
+        let url = format!("https://api.telegram.org/bot{}/sendMessage", self.bot_token);
 
         self.client
             .post(&url)
@@ -118,10 +112,7 @@ impl TelegramNotifier {
 
     /// Send a photo (PNG bytes) with an optional caption via Telegram sendPhoto.
     pub async fn send_photo(&self, png_bytes: Vec<u8>, caption: &str) -> Result<()> {
-        let url = format!(
-            "https://api.telegram.org/bot{}/sendPhoto",
-            self.bot_token
-        );
+        let url = format!("https://api.telegram.org/bot{}/sendPhoto", self.bot_token);
 
         let photo_part = reqwest::multipart::Part::bytes(png_bytes)
             .file_name("chart.png")
@@ -147,10 +138,7 @@ impl TelegramNotifier {
 
     /// Long-poll for new updates from Telegram Bot API.
     pub async fn get_updates(&self, offset: i64, timeout: u32) -> Result<Vec<TelegramUpdate>> {
-        let url = format!(
-            "https://api.telegram.org/bot{}/getUpdates",
-            self.bot_token
-        );
+        let url = format!("https://api.telegram.org/bot{}/getUpdates", self.bot_token);
 
         let resp = self
             .client
